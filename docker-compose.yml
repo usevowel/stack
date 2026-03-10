@@ -3,7 +3,7 @@ name: vowel-self-hosted
 services:
   sndbrd:
     build:
-      context: ../engines/sndbrd
+      context: ./engine
       dockerfile: Dockerfile.runtime-node
     container_name: vowel-sndbrd
     ports:
@@ -31,7 +31,7 @@ services:
 
   core:
     build:
-      context: ../core
+      context: ./core
       dockerfile: Dockerfile
     container_name: vowel-core
     depends_on:

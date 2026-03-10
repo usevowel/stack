@@ -7,10 +7,16 @@ This repository owns the Docker Compose workflow for running the self-hosted sta
 - `core` as the self-hosted token issuance service
 - `sndbrd` as the self-hosted realtime engine runtime
 
+It also owns the stack-level submodule graph used to build those services:
+
+- `./core` - `usevowel/core`
+- `./engine` - `usevowel/sndbrd`
+
 ## Files
 
 - `docker-compose.yml` - primary local stack definition
 - `stack.env.example` - example environment file for local runs
+- `.gitmodules` - stack-owned service submodules
 
 ## Usage From The Workspace
 
