@@ -1,0 +1,17 @@
+# Local environment files
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Wrangler / worker local secrets
+.dev.vars
+.dev.vars.*
+
+# Local stack env
+stack.env
+
+# Common local artifacts
+.wrangler/
+*.log
+.DS_Store
