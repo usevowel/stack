@@ -11,22 +11,26 @@ services:
     environment:
       PORT: 8787
       NODE_ENV: production
+      RUNTIME_CONFIG_PATH: /app/data/config/runtime.yaml
       API_KEY: ${SNDBRD_API_KEY}
       JWT_SECRET: ${JWT_SECRET}
       TEST_MODE: ${TEST_MODE:-true}
-      LLM_PROVIDER: ${LLM_PROVIDER:-groq}
+      LLM_PROVIDER: ${LLM_PROVIDER:-openrouter}
       GROQ_API_KEY: ${GROQ_API_KEY:-local-stack-placeholder}
-      GROQ_MODEL: ${GROQ_MODEL:-moonshotai/kimi-k2-instruct-0905}
+      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-20b}
       GROQ_WHISPER_MODEL: ${GROQ_WHISPER_MODEL:-whisper-large-v3}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openrouter/healer-alpha}
       STT_PROVIDER: ${STT_PROVIDER:-assemblyai}
       ASSEMBLYAI_API_KEY: ${ASSEMBLYAI_API_KEY:-}
       INWORLD_API_KEY: ${INWORLD_API_KEY:-local-stack-placeholder}
       TTS_PROVIDER: ${TTS_PROVIDER:-inworld}
       INWORLD_VOICE: ${INWORLD_VOICE:-Ashley}
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       CEREBRAS_API_KEY: ${CEREBRAS_API_KEY:-}
       VAD_PROVIDER: ${VAD_PROVIDER:-assemblyai-integrated}
       VAD_ENABLED: ${VAD_ENABLED:-true}
+    volumes:
+      - engine-data:/app/data
     restart: unless-stopped
 
   core:
@@ -65,3 +69,4 @@ services:
 
 volumes:
   core-data:
+  engine-data:
