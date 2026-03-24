@@ -58,3 +58,16 @@ Useful bootstrap envs for the generic provider:
 - `OPENAI_COMPATIBLE_API_KEY=` if your gateway does not require one
 - `OPENAI_COMPATIBLE_MODEL=your-model-id`
 - `OPENAI_COMPATIBLE_NAME=local-gateway`
+
+## Trusted Server Connections
+
+The self-hosted stack supports **trusted server connections** for backend-to-backend voice workflows. A trusted server mints a short-lived token, opens a WebSocket to the realtime engine, and manages the session programmatically.
+
+Key points:
+
+- API keys must carry the `mint_trusted_session` scope to mint trusted-server tokens.
+- The token request must include `connectionType: 'trusted_server'`, a `serviceId`, and optional `serverTools`.
+- Server tools are declared at token-issuance time. The engine forwards tool calls to the trusted server over the WebSocket.
+- Trusted-server tokens should never reach a browser. Keep them server-side.
+
+See the [Trusted Server recipe](../docs/recipes/trusted-server.md) for a full walkthrough and the [Connection Paradigms doc](../docs/recipes/connection-paradigms.md) for an overview of all supported patterns.
