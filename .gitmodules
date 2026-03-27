@@ -5,3 +5,9 @@
 	path = engine
 	url = git@github.com:usevowel/engine.git
 	branch = main
+[submodule "client"]
+	path = client
+	url = git@github.com:usevowel/client.git
+[submodule "demos"]
+	path = demos
+	url = https://github.com/usevowel/demos.git
