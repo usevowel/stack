@@ -1,18 +1,18 @@
 name: vowel-self-hosted
 
 services:
-  sndbrd:
+  engine:
     build:
       context: ./engine
       dockerfile: Dockerfile.runtime-node
-    container_name: vowel-sndbrd
+    container_name: vowel-engine
     ports:
-      - "${SNDBRD_HOST_PORT:-8787}:8787"
+      - "${ENGINE_HOST_PORT:-8787}:8787"
     environment:
       PORT: 8787
       NODE_ENV: production
       RUNTIME_CONFIG_PATH: /app/data/config/runtime.yaml
-      API_KEY: ${SNDBRD_API_KEY}
+      API_KEY: ${ENGINE_API_KEY}
       JWT_SECRET: ${JWT_SECRET}
       TEST_MODE: ${TEST_MODE:-true}
       LLM_PROVIDER: ${LLM_PROVIDER:-openrouter}
@@ -21,13 +21,13 @@ services:
       GROQ_WHISPER_MODEL: ${GROQ_WHISPER_MODEL:-whisper-large-v3}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openrouter/healer-alpha}
-      STT_PROVIDER: ${STT_PROVIDER:-assemblyai}
-      ASSEMBLYAI_API_KEY: ${ASSEMBLYAI_API_KEY:-}
-      INWORLD_API_KEY: ${INWORLD_API_KEY:-local-stack-placeholder}
-      TTS_PROVIDER: ${TTS_PROVIDER:-inworld}
-      INWORLD_VOICE: ${INWORLD_VOICE:-Ashley}
-      CEREBRAS_API_KEY: ${CEREBRAS_API_KEY:-}
-      VAD_PROVIDER: ${VAD_PROVIDER:-assemblyai-integrated}
+      STT_PROVIDER: ${STT_PROVIDER:-deepgram}
+      DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
+      DEEPGRAM_STT_MODEL: ${DEEPGRAM_STT_MODEL:-nova-3}
+      DEEPGRAM_STT_LANGUAGE: ${DEEPGRAM_STT_LANGUAGE:-en-US}
+      DEEPGRAM_TTS_MODEL: ${DEEPGRAM_TTS_MODEL:-aura-2-thalia-en}
+      TTS_PROVIDER: ${TTS_PROVIDER:-deepgram}
+      VAD_PROVIDER: ${VAD_PROVIDER:-silero}
       VAD_ENABLED: ${VAD_ENABLED:-true}
     volumes:
       - engine-data:/app/data
@@ -39,7 +39,7 @@ services:
       dockerfile: Dockerfile
     container_name: vowel-core
     depends_on:
-      sndbrd:
+      engine:
         condition: service_healthy
     ports:
       - "${CORE_HOST_PORT:-3000}:3000"
@@ -47,13 +47,13 @@ services:
       PORT: 3000
       DB_PATH: /app/data/core.db
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
-      SNDBRD_URL: http://sndbrd:8787
-      SNDBRD_WS_URL: ws://localhost:${SNDBRD_HOST_PORT:-8787}/v1/realtime
-      SNDBRD_API_KEY: ${SNDBRD_API_KEY}
+      ENGINE_URL: http://engine:8787
+      ENGINE_WS_URL: ws://localhost:${ENGINE_HOST_PORT:-8787}/v1/realtime
+      ENGINE_API_KEY: ${ENGINE_API_KEY}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       XAI_API_KEY: ${XAI_API_KEY:-}
-      ENDPOINT_PRESET_VOWEL_PRIME_STAGING_HTTP_URL: http://sndbrd:8787
-      ENDPOINT_PRESET_VOWEL_PRIME_STAGING_WS_URL: ws://localhost:${SNDBRD_HOST_PORT:-8787}/v1/realtime
+      ENDPOINT_PRESET_VOWEL_PRIME_STAGING_HTTP_URL: http://engine:8787
+      ENDPOINT_PRESET_VOWEL_PRIME_STAGING_WS_URL: ws://localhost:${ENGINE_HOST_PORT:-8787}/v1/realtime
       CORE_BOOTSTRAP_APP_ID: ${CORE_BOOTSTRAP_APP_ID:-default}
       CORE_BOOTSTRAP_APP_NAME: ${CORE_BOOTSTRAP_APP_NAME:-Local Stack App}
       CORE_BOOTSTRAP_APP_DESCRIPTION: ${CORE_BOOTSTRAP_APP_DESCRIPTION:-Bootstrap app for the self-hosted Docker stack}
