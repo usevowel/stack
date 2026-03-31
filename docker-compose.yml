@@ -1,0 +1,72 @@
+name: vowel-self-hosted
+
+services:
+  engine:
+    build:
+      context: ./engine
+      dockerfile: Dockerfile.runtime-node
+    container_name: vowel-engine
+    ports:
+      - "${ENGINE_HOST_PORT:-8787}:8787"
+    environment:
+      PORT: 8787
+      NODE_ENV: production
+      RUNTIME_CONFIG_PATH: /app/data/config/runtime.yaml
+      API_KEY: ${ENGINE_API_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      TEST_MODE: ${TEST_MODE:-true}
+      LLM_PROVIDER: ${LLM_PROVIDER:-openrouter}
+      GROQ_API_KEY: ${GROQ_API_KEY:-local-stack-placeholder}
+      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-20b}
+      GROQ_WHISPER_MODEL: ${GROQ_WHISPER_MODEL:-whisper-large-v3}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openrouter/healer-alpha}
+      STT_PROVIDER: ${STT_PROVIDER:-deepgram}
+      DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
+      DEEPGRAM_STT_MODEL: ${DEEPGRAM_STT_MODEL:-nova-3}
+      DEEPGRAM_STT_LANGUAGE: ${DEEPGRAM_STT_LANGUAGE:-en-US}
+      DEEPGRAM_TTS_MODEL: ${DEEPGRAM_TTS_MODEL:-aura-2-thalia-en}
+      TTS_PROVIDER: ${TTS_PROVIDER:-deepgram}
+      VAD_PROVIDER: ${VAD_PROVIDER:-silero}
+      VAD_ENABLED: ${VAD_ENABLED:-true}
+    volumes:
+      - engine-data:/app/data
+    restart: unless-stopped
+
+  core:
+    build:
+      context: ./core
+      dockerfile: Dockerfile
+    container_name: vowel-core
+    depends_on:
+      engine:
+        condition: service_healthy
+    ports:
+      - "${CORE_HOST_PORT:-3000}:3000"
+    environment:
+      PORT: 3000
+      DB_PATH: /app/data/core.db
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      ENGINE_URL: http://engine:8787
+      ENGINE_WS_URL: ws://localhost:${ENGINE_HOST_PORT:-8787}/v1/realtime
+      ENGINE_API_KEY: ${ENGINE_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      XAI_API_KEY: ${XAI_API_KEY:-}
+      ENDPOINT_PRESET_VOWEL_PRIME_STAGING_HTTP_URL: http://engine:8787
+      ENDPOINT_PRESET_VOWEL_PRIME_STAGING_WS_URL: ws://localhost:${ENGINE_HOST_PORT:-8787}/v1/realtime
+      CORE_BOOTSTRAP_APP_ID: ${CORE_BOOTSTRAP_APP_ID:-default}
+      CORE_BOOTSTRAP_APP_NAME: ${CORE_BOOTSTRAP_APP_NAME:-Local Stack App}
+      CORE_BOOTSTRAP_APP_DESCRIPTION: ${CORE_BOOTSTRAP_APP_DESCRIPTION:-Bootstrap app for the self-hosted Docker stack}
+      CORE_BOOTSTRAP_API_KEY_LABEL: ${CORE_BOOTSTRAP_API_KEY_LABEL:-Local Stack Key}
+      CORE_BOOTSTRAP_SCOPES: ${CORE_BOOTSTRAP_SCOPES:-mint_ephemeral}
+      CORE_BOOTSTRAP_ALLOWED_PROVIDERS: ${CORE_BOOTSTRAP_ALLOWED_PROVIDERS:-vowel-prime}
+      CORE_BOOTSTRAP_ALLOWED_ENDPOINT_PRESETS: ${CORE_BOOTSTRAP_ALLOWED_ENDPOINT_PRESETS:-staging}
+      CORE_BOOTSTRAP_DEFAULT_ENDPOINT_PRESET: ${CORE_BOOTSTRAP_DEFAULT_ENDPOINT_PRESET:-staging}
+      CORE_BOOTSTRAP_PUBLISHABLE_KEY: ${CORE_BOOTSTRAP_PUBLISHABLE_KEY}
+    volumes:
+      - core-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  core-data:
+  engine-data:
