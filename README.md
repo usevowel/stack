@@ -1,5 +1,7 @@
 # vowel Self-Hosted Stack
 
+> **⚠️ Beta Release** — This open-source release is in beta. You may encounter rough edges, incomplete features, or breaking changes. We are actively reviewing and merging community PRs, but please expect some instability as we iterate toward a stable release. Your feedback and contributions are welcome.
+
 Docker Compose workflow for running the full vowel stack locally: **Core** (token service + UI) and **sndbrd** (realtime voice engine).
 
 ## What You Get
