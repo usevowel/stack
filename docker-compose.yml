@@ -1,6 +1,35 @@
 name: vowel-self-hosted
 
 services:
+  echoline:
+    image: ghcr.io/vowel/echoline:latest-cuda
+    container_name: vowel-echoline
+    ports:
+      - "${ECHOLINE_HOST_PORT:-8000}:8000"
+    environment:
+      # Echoline uses the same provider pattern as the engine for LLM completions
+      # Required for realtime API chat completions
+      CHAT_COMPLETION_BASE_URL: ${ECHOLINE_CHAT_COMPLETION_BASE_URL:-http://host.docker.internal:8787/v1}
+      CHAT_COMPLETION_API_KEY: ${ECHOLINE_CHAT_COMPLETION_API_KEY:-${ENGINE_API_KEY:-}}
+      # HuggingFace token for downloading models (optional)
+      HF_TOKEN: ${HF_TOKEN:-}
+      # Log level
+      ECHOLINE_LOG_LEVEL: ${ECHOLINE_LOG_LEVEL:-INFO}
+    volumes:
+      - echoline-cache:/home/ubuntu/.cache/huggingface/hub
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+    # GPU is optional - CPU-only fallback available with :latest-cpu tag
+    profiles:
+      - echoline
+      - full-self-hosted
+
   engine:
     build:
       context: ./engine
@@ -21,17 +50,25 @@ services:
       GROQ_WHISPER_MODEL: ${GROQ_WHISPER_MODEL:-whisper-large-v3}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openrouter/healer-alpha}
+      # OpenAI-compatible provider for self-hosted STT/TTS (Echoline)
+      OPENAI_COMPATIBLE_BASE_URL: ${OPENAI_COMPATIBLE_BASE_URL:-http://echoline:8000/v1}
+      OPENAI_COMPATIBLE_API_KEY: ${OPENAI_COMPATIBLE_API_KEY:-}
+      # Provider selection - deepgram (default) or openai-compatible for echoline
       STT_PROVIDER: ${STT_PROVIDER:-deepgram}
       DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
       DEEPGRAM_STT_MODEL: ${DEEPGRAM_STT_MODEL:-nova-3}
       DEEPGRAM_STT_LANGUAGE: ${DEEPGRAM_STT_LANGUAGE:-en-US}
-      DEEPGRAM_TTS_MODEL: ${DEEPGRAM_TTS_MODEL:-aura-2-thalia-en}
       TTS_PROVIDER: ${TTS_PROVIDER:-deepgram}
+      DEEPGRAM_TTS_MODEL: ${DEEPGRAM_TTS_MODEL:-aura-2-thalia-en}
       VAD_PROVIDER: ${VAD_PROVIDER:-silero}
       VAD_ENABLED: ${VAD_ENABLED:-true}
     volumes:
       - engine-data:/app/data
     restart: unless-stopped
+    depends_on:
+      echoline:
+        condition: service_started
+        required: false
 
   core:
     build:
@@ -70,3 +107,4 @@ services:
 volumes:
   core-data:
   engine-data:
+  echoline-cache:

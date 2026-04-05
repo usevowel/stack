@@ -10,6 +10,20 @@ Docker Compose workflow for running the full vowel stack locally: **Core** (toke
 |---------|-----------|-------------|---------|
 | **Core** | `vowel-core` | `http://localhost:3000` | Token issuance, app management, Web UI |
 | **Engine** | `vowel-engine` | `ws://localhost:8787/v1/realtime` | Realtime voice AI (OpenAI-compatible WebSocket) |
+| **Echoline** | `vowel-echoline` | `http://localhost:8000` | (Optional) Self-hosted STT/TTS using faster-whisper and Kokoro |
+
+### Deployment Modes
+
+**Default (Hosted STT/TTS):**
+- Core + Engine only
+- Requires Deepgram API key for speech-to-text and text-to-speech
+- Quick setup, no GPU required
+
+**Fully Self-Hosted (No External Speech Dependencies):**
+- Core + Engine + Echoline
+- Uses local faster-whisper for STT and Kokoro for TTS
+- Requires NVIDIA GPU (or CPU-only mode with slower performance)
+- No external API keys needed for speech processing
 
 ## Files
 
@@ -46,6 +60,28 @@ The default LLM provider is `openrouter` in `stack.env.example`. Set `LLM_PROVID
 | `DEEPGRAM_API_KEY` | Speech-to-text and text-to-speech |
 
 Get a key at [deepgram.com](https://deepgram.com). The docker-compose defaults use Deepgram for both STT and TTS (`nova-3` for STT, `aura-2-thalia-en` for TTS).
+
+### Alternative: Fully Self-Hosted with Echoline (No Deepgram Required)
+
+If you prefer to keep all speech processing local without external dependencies, you can run Echoline as a self-hosted STT/TTS provider:
+
+**Requirements:**
+- NVIDIA GPU with CUDA support (optional but recommended)
+- 8GB+ GPU memory for real-time performance
+- Docker with NVIDIA Container Toolkit (for GPU support)
+
+**Benefits:**
+- No external API dependencies for speech
+- Lower latency for some workloads
+- Data privacy - audio never leaves your infrastructure
+- One-time model download, then runs offline
+
+**Trade-offs:**
+- Requires GPU for real-time performance
+- Higher initial setup complexity
+- Model quality may differ from hosted providers
+
+See [Fully Self-Hosted Setup](#fully-self-hosted-setup-with-echoline) below for configuration details.
 
 ### 3. Configure `stack.env`
 
@@ -153,6 +189,130 @@ cd demos/demo && bun run dev
 
 Open the demo URL, click the microphone, and speak. The demo fetches ephemeral tokens from Core, which proxies to the engine.
 
+## Fully Self-Hosted Setup with Echoline
+
+For deployments that need to avoid external speech APIs, you can run Echoline as a local STT/TTS provider.
+
+### Prerequisites
+
+1. **NVIDIA GPU** (recommended) or CPU-only mode
+2. **Docker with NVIDIA Container Toolkit:**
+   ```bash
+   # Ubuntu/Debian
+   sudo apt-get install nvidia-container-toolkit
+   sudo systemctl restart docker
+   ```
+3. **Sufficient disk space:** ~5GB for initial model downloads
+
+### Starting the Stack with Echoline
+
+**1. Configure stack.env for Self-Hosted Audio**
+
+Edit your `stack.env`:
+
+```bash
+# Switch providers from deepgram to openai-compatible
+STT_PROVIDER=openai-compatible
+TTS_PROVIDER=openai-compatible
+
+# Point to the echoline container (Docker internal DNS)
+OPENAI_COMPATIBLE_BASE_URL=http://echoline:8000/v1
+OPENAI_COMPATIBLE_API_KEY=
+
+# Echoline models
+ECHOLINE_STT_MODEL=Systran/faster-whisper-tiny  # or small, base, etc.
+ECHOLINE_TTS_MODEL=onnx-community/Kokoro-82M-v1.0-ONNX
+ECHOLINE_TTS_VOICE=af_heart
+DEFAULT_VOICE=af_heart
+
+# Disable Deepgram (not needed in self-hosted mode)
+DEEPGRAM_API_KEY=
+```
+
+**2. Start with the Echoline Profile**
+
+```bash
+# Start all services including echoline
+docker compose --profile echoline up
+
+# Or use the bun script (from workspace root)
+bun run stack:up --echoline
+```
+
+The first startup will download:
+- ~1GB: faster-whisper model (e.g., tiny = ~400MB, small = ~900MB)
+- ~300MB: Kokoro TTS model
+
+**3. Verify Echoline is Running**
+
+```bash
+# Check health
+curl http://localhost:8000/health
+
+# List available models
+curl http://localhost:8000/v1/models
+```
+
+**4. Test the Stack**
+
+Run the smoke test:
+
+```bash
+bun run stack:test
+```
+
+The test will verify that the engine can connect to echoline for STT/TTS.
+
+### CPU-Only Mode (No GPU)
+
+If you don't have an NVIDIA GPU, use the CPU-only image:
+
+```yaml
+# In docker-compose.yml or docker-compose.override.yml
+services:
+  echoline:
+    image: ghcr.io/vowel/echoline:latest-cpu
+    # Remove the deploy.resources section
+```
+
+**Note:** CPU mode is significantly slower for real-time transcription. It's suitable for development but not recommended for production voice interactions.
+
+### Echoline Model Selection
+
+| Model | Size | Quality | Best For |
+|-------|------|---------|----------|
+| `Systran/faster-whisper-tiny` | ~400MB | Good | Development, fast iteration |
+| `Systran/faster-whisper-small` | ~900MB | Better | Balanced quality/speed |
+| `Systran/faster-whisper-base` | ~1.5GB | Good | - |
+| `Systran/faster-whisper-medium` | ~5GB | Best | Production quality |
+
+Change the model in `stack.env`:
+```bash
+ECHOLINE_STT_MODEL=Systran/faster-whisper-small
+```
+
+### Troubleshooting Echoline
+
+**Issue: "No GPU available"**
+- Ensure NVIDIA drivers are installed: `nvidia-smi`
+- Install NVIDIA Container Toolkit
+- Check Docker can see the GPU: `docker run --rm --gpus all nvidia/cuda:12.0-base nvidia-smi`
+
+**Issue: Slow transcription on CPU**
+- Use a smaller model (tiny instead of small)
+- Consider upgrading to a GPU for production
+- Lower audio quality expectations for CPU mode
+
+**Issue: Model download fails**
+- Check `HF_TOKEN` is set if using gated models
+- Verify internet connection for initial download
+- Check disk space in the Docker volume
+
+**Issue: Echoline shows healthy but STT/TTS fails**
+- Check engine logs: `docker logs vowel-engine`
+- Verify `OPENAI_COMPATIBLE_BASE_URL` points to `http://echoline:8000/v1`
+- Ensure models finished downloading (check echoline logs)
+
 ## Environment Variable Reference
 
 ### Required
@@ -179,15 +339,30 @@ Open the demo URL, click the microphone, and speak. The demo fetches ephemeral t
 | `OPENAI_COMPATIBLE_API_KEY` | - | API key (leave empty if gateway doesn't require one) |
 | `OPENAI_COMPATIBLE_MODEL` | `gpt-4o-mini` | Model ID for the gateway |
 
-### STT / TTS (Deepgram defaults)
+### STT / TTS
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `STT_PROVIDER` | `deepgram` | Speech-to-text provider |
+| `STT_PROVIDER` | `deepgram` | Speech-to-text provider: `deepgram` or `openai-compatible` |
+| `TTS_PROVIDER` | `deepgram` | Text-to-speech provider: `deepgram` or `openai-compatible` |
+| **Deepgram (when provider = deepgram)** |
+| `DEEPGRAM_API_KEY` | - | Deepgram API key |
 | `DEEPGRAM_STT_MODEL` | `nova-3` | Deepgram STT model |
 | `DEEPGRAM_STT_LANGUAGE` | `en-US` | STT language |
-| `TTS_PROVIDER` | `deepgram` | Text-to-speech provider |
 | `DEEPGRAM_TTS_MODEL` | `aura-2-thalia-en` | Deepgram TTS voice model |
+| **OpenAI-Compatible / Echoline (when provider = openai-compatible)** |
+| `OPENAI_COMPATIBLE_BASE_URL` | `http://echoline:8000/v1` | Base URL for OpenAI-compatible audio service |
+| `OPENAI_COMPATIBLE_API_KEY` | - | API key (usually empty for local echoline) |
+| `ECHOLINE_STT_MODEL` | `Systran/faster-whisper-tiny` | Whisper model for STT |
+| `ECHOLINE_TTS_MODEL` | `onnx-community/Kokoro-82M-v1.0-ONNX` | Kokoro TTS model |
+| `ECHOLINE_TTS_VOICE` | `af_heart` | Default TTS voice |
+| `DEFAULT_VOICE` | `af_heart` | Engine default voice |
+| **Echoline Container (when using --profile echoline)** |
+| `ECHOLINE_HOST_PORT` | `8000` | Host port for echoline API |
+| `ECHOLINE_CHAT_COMPLETION_BASE_URL` | `http://host.docker.internal:8787/v1` | LLM backend for echoline realtime |
+| `ECHOLINE_CHAT_COMPLETION_API_KEY` | - | API key for LLM backend |
+| `HF_TOKEN` | - | HuggingFace token for gated models |
+| `ECHOLINE_LOG_LEVEL` | `INFO` | Echoline logging verbosity |
 
 ### VAD
 
@@ -216,6 +391,7 @@ Core seeds an app and publishable key on first boot from these envs:
 |----------|---------|-------------|
 | `CORE_HOST_PORT` | `3000` | Core host port |
 | `ENGINE_HOST_PORT` | `8787` | Engine host port |
+| `ECHOLINE_HOST_PORT` | `8000` | Echoline host port (when using --profile echoline) |
 
 ## Runtime Config Ownership
 
