@@ -106,8 +106,14 @@ CORE_BOOTSTRAP_PUBLISHABLE_KEY=vkey_your-64-char-hex-publishable-key
 LLM_PROVIDER=groq          # or "openrouter" or "openai-compatible"
 GROQ_API_KEY=gsk_your_key   # if using Groq
 
-# Required - Deepgram for STT/TTS
+# Optional - add credentials for any speech providers you want available in Core
 DEEPGRAM_API_KEY=your_deepgram_key
+OPENAI_COMPATIBLE_BASE_URL=http://echoline:8000/v1
+OPENAI_COMPATIBLE_API_KEY=
+
+# Optional - stack defaults for new apps and fallback behavior
+DEFAULT_STT_PROVIDER=deepgram
+DEFAULT_TTS_PROVIDER=deepgram
 ```
 
 **If you have the engine `.dev.vars` file** (internal developers), you can sync secrets automatically:
@@ -211,9 +217,11 @@ For deployments that need to avoid external speech APIs, you can run Echoline as
 Edit your `stack.env`:
 
 ```bash
-# Switch providers from deepgram to openai-compatible
-STT_PROVIDER=openai-compatible
-TTS_PROVIDER=openai-compatible
+# Keep both providers available, but default new apps to openai-compatible
+STT_PROVIDER=deepgram
+TTS_PROVIDER=deepgram
+DEFAULT_STT_PROVIDER=openai-compatible
+DEFAULT_TTS_PROVIDER=openai-compatible
 
 # Point to the echoline container (Docker internal DNS)
 OPENAI_COMPATIBLE_BASE_URL=http://echoline:8000/v1
@@ -343,8 +351,10 @@ ECHOLINE_STT_MODEL=Systran/faster-whisper-small
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `STT_PROVIDER` | `deepgram` | Speech-to-text provider: `deepgram` or `openai-compatible` |
-| `TTS_PROVIDER` | `deepgram` | Text-to-speech provider: `deepgram` or `openai-compatible` |
+| `STT_PROVIDER` | `deepgram` | Engine fallback/default STT provider |
+| `TTS_PROVIDER` | `deepgram` | Engine fallback/default TTS provider |
+| `DEFAULT_STT_PROVIDER` | `STT_PROVIDER` | Core bootstrap/app default STT provider |
+| `DEFAULT_TTS_PROVIDER` | `TTS_PROVIDER` | Core bootstrap/app default TTS provider |
 | **Deepgram (when provider = deepgram)** |
 | `DEEPGRAM_API_KEY` | - | Deepgram API key |
 | `DEEPGRAM_STT_MODEL` | `nova-3` | Deepgram STT model |
@@ -363,6 +373,7 @@ ECHOLINE_STT_MODEL=Systran/faster-whisper-small
 | `ECHOLINE_CHAT_COMPLETION_API_KEY` | - | API key for LLM backend |
 | `HF_TOKEN` | - | HuggingFace token for gated models |
 | `ECHOLINE_LOG_LEVEL` | `INFO` | Echoline logging verbosity |
+| `CORE_ENABLE_DEV_VOICE_OVERRIDES` | `false` | Allow hidden client `_voiceConfig` runtime overrides in Core |
 
 ### VAD
 
