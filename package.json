@@ -1,0 +1,37 @@
+{
+  "name": "vowel-stack",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Vowel Self-Hosted Stack - Docker Compose workflow for running the full vowel stack locally",
+  "workspaces": [
+    "client",
+    "core",
+    "demos/*",
+    "engine/packages/*"
+  ],
+  "scripts": {
+    "stack:up": "docker compose up -d",
+    "stack:up:gpu": "docker compose -f docker-compose.gpu.yml up -d",
+    "stack:down": "docker compose down -v",
+    "stack:down:gpu": "docker compose -f docker-compose.gpu.yml down -v",
+    "stack:logs": "docker compose logs -f",
+    "stack:logs:gpu": "docker compose -f docker-compose.gpu.yml logs -f",
+    "stack:test": "bun run scripts/stack-test.ts",
+    "stack:sync-secrets": "bun run scripts/sync-secrets.ts",
+    "stack:build": "docker compose build",
+    "stack:build:gpu": "docker compose -f docker-compose.gpu.yml build",
+    "demo:dev": "cd demos/demo && bun run dev",
+    "demo:build": "cd demos/demo && bun run build",
+    "client:build": "cd client && bun run build",
+    "client:dev": "cd client && bun run dev",
+    "core:dev": "cd core && bun run dev",
+    "install:all": "bun install && cd client && bun install && cd ../core && bun install && cd ../demos/demo && bun install"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.9.0"
+  },
+  "engines": {
+    "bun": ">=1.1.0"
+  }
+}

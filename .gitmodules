@@ -11,3 +11,6 @@
 [submodule "demos"]
 	path = demos
 	url = https://github.com/usevowel/demos.git
+[submodule "echoline"]
+	path = echoline
+	url = https://github.com/usevowel/echoline.git

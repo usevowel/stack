@@ -2,7 +2,42 @@
 
 > **⚠️ Beta Release** — This open-source release is in beta. You may encounter rough edges, incomplete features, or breaking changes. We are actively reviewing and merging community PRs, but please expect some instability as we iterate toward a stable release. Your feedback and contributions are welcome.
 
-Docker Compose workflow for running the full vowel stack locally: **Core** (token service + UI) and **sndbrd** (realtime voice engine).
+Docker Compose workflow for running the full vowel stack locally: **Core** (token service + UI), **Engine** (realtime voice AI), and optional **Echoline** (self-hosted STT/TTS).
+
+## Quick Links
+
+| Component | Repository | Description |
+|-----------|------------|-------------|
+| **Stack** (this repo) | [usevowel/stack](https://github.com/usevowel/stack) | Docker Compose orchestration |
+| **Core** | [usevowel/core](https://github.com/usevowel/core) | Token service + Web UI |
+| **Engine** | [usevowel/engine](https://github.com/usevowel/engine) | Real-time voice AI engine |
+| **Client** | [usevowel/client](https://github.com/usevowel/client) | Framework-agnostic voice agent library |
+| **Demos** | [usevowel/demos](https://github.com/usevowel/demos) | Demo applications |
+| **Echoline** | [usevowel/echoline](https://github.com/usevowel/echoline) | Self-hosted STT/TTS (faster-whisper + Kokoro) |
+
+## Quick Start
+
+See [SETUP.md](./SETUP.md) for detailed setup instructions.
+
+```bash
+# 1. Clone with submodules
+git clone --recursive https://github.com/usevowel/stack.git
+cd stack
+
+# 2. Install dependencies
+bun install --no-cache
+
+# 3. Configure environment
+cp stack.env.example .env
+# Edit .env with your API keys
+
+# 4. Start the stack
+docker compose up -d
+
+# 5. Run the demo
+cd demos/demo && bun run dev
+# Open http://localhost:3900
+```
 
 ## What You Get
 
@@ -27,9 +62,35 @@ Docker Compose workflow for running the full vowel stack locally: **Core** (toke
 
 ## Files
 
-- `docker-compose.yml` - stack definition
-- `stack.env.example` - template environment file
-- `.gitmodules` - submodules for `core` and `engine`
+- `docker-compose.yml` - Standard stack definition (CPU-only)
+- `docker-compose.gpu.yml` - GPU-enabled stack with NVIDIA support
+- `stack.env.example` - Template environment file
+- `SETUP.md` - Detailed setup guide
+- `.gitmodules` - Submodules for `core`, `engine`, `client`, `demos`, and `echoline`
+
+## Submodules
+
+This repository includes the following submodules:
+
+```bash
+# Core services
+git submodule add https://github.com/usevowel/core.git core
+git submodule add https://github.com/usevowel/engine.git engine
+
+# Client library
+git submodule add https://github.com/usevowel/client.git client
+
+# Demo applications
+git submodule add https://github.com/usevowel/demos.git demos
+
+# Optional: Self-hosted STT/TTS
+git submodule add https://github.com/usevowel/echoline.git echoline
+```
+
+Initialize all submodules:
+```bash
+git submodule update --init --recursive
+```
 
 ## Getting Started
 
@@ -103,17 +164,17 @@ JWT_SECRET=your-32-char-minimum-secret
 CORE_BOOTSTRAP_PUBLISHABLE_KEY=vkey_your-64-char-hex-publishable-key
 
 # Required - pick one LLM provider
-LLM_PROVIDER=groq          # or "openrouter" or "openai-compatible"
-GROQ_API_KEY=gsk_your_key   # if using Groq
+LLM_PROVIDER=openrouter    # or "groq" or "openai-compatible"
+OPENROUTER_API_KEY=your_openrouter_key
 
-# Optional - add credentials for any speech providers you want available in Core
+# Required - Deepgram (for Path A)
 DEEPGRAM_API_KEY=your_deepgram_key
-OPENAI_COMPATIBLE_BASE_URL=http://echoline:8000/v1
-OPENAI_COMPATIBLE_API_KEY=
+STT_PROVIDER=deepgram
+TTS_PROVIDER=deepgram
 
-# Optional - stack defaults for new apps and fallback behavior
-DEFAULT_STT_PROVIDER=deepgram
-DEFAULT_TTS_PROVIDER=deepgram
+# Disable server-side VAD (Deepgram has built-in VAD)
+VAD_PROVIDER=none
+VAD_ENABLED=false
 ```
 
 **If you have the engine `.dev.vars` file** (internal developers), you can sync secrets automatically:
@@ -124,13 +185,27 @@ bun run stack:sync-secrets
 
 This copies provider API keys from `engine/.dev.vars` into `stack.env`.
 
-### 4. Start the Stack
+### 4. Choose Your Deployment Path
+
+See [Deployment Paths](#deployment-paths) below for full details on:
+- **Path A**: Deepgram-powered (hosted STT/TTS)
+- **Path B**: Self-hosted with Echoline (local STT/TTS)
+- **Path C**: GPU-accelerated setup
+
+### 5. Start the Stack
 
 ```bash
+# Standard (CPU)
 bun run stack:up
+
+# Or with GPU support
+bun run stack:up:gpu
+
+# Or with Echoline (self-hosted STT/TTS)
+docker compose --profile echoline up -d
 ```
 
-This builds and starts both containers. First run takes a few minutes to build images.
+This builds and starts containers. First run takes a few minutes.
 
 Check logs:
 
@@ -140,7 +215,7 @@ bun run stack:logs
 
 Wait for both services to report healthy. Core depends on the engine being healthy before it starts.
 
-### 5. Validate the Stack
+### 6. Validate the Stack
 
 Run the smoke test (from workspace root):
 
@@ -156,7 +231,7 @@ This verifies:
 
 You can also open `http://localhost:3000` in a browser to access the Core Web UI.
 
-### 6. Retrieve the Bootstrap Publishable Key
+### 7. Retrieve the Bootstrap Publishable Key
 
 Core auto-bootstraps an app and API key on first start using the `CORE_BOOTSTRAP_*` env vars in `stack.env`. The publishable key you set in `CORE_BOOTSTRAP_PUBLISHABLE_KEY` is the key the demo uses to request tokens.
 
@@ -168,7 +243,7 @@ bun run stack:logs | grep bootstrap
 
 You should see: `[core] bootstrap publishable key created for app=default`
 
-### 7. Run the Demo Against Core
+### 8. Run the Demo Against Core
 
 `demos/demo` is the self-hosted-compatible demo today. Configure it to use the local stack:
 
@@ -195,7 +270,130 @@ cd demos/demo && bun run dev
 
 Open the demo URL, click the microphone, and speak. The demo fetches ephemeral tokens from Core, which proxies to the engine.
 
-## Fully Self-Hosted Setup with Echoline
+## Deployment Paths
+
+The Vowel stack supports three deployment configurations:
+
+### Path A: Deepgram-Powered (Quick Start)
+
+**Best for:** Getting started quickly, production deployments
+
+**Components:**
+- Core (token service + UI)
+- Engine (voice AI with Deepgram integration)
+- Deepgram hosted STT/TTS (nova-3 + aura-2-thalia-en)
+
+**Setup:**
+```bash
+# 1. Configure environment
+cp stack.env.example .env
+# Edit .env - set DEEPGRAM_API_KEY, OPENROUTER_API_KEY
+# VAD_PROVIDER=none (Deepgram has built-in VAD)
+
+# 2. Start
+bun run stack:up
+```
+
+**Pros:**
+- Fast setup
+- No GPU required
+- Professional-grade STT/TTS quality
+- No model download time
+
+**Cons:**
+- Requires Deepgram API key (external dependency)
+- Ongoing API costs
+
+---
+
+### Path B: Fully Self-Hosted with Echoline
+
+**Best for:** Privacy, offline operation, no API costs
+
+**Components:**
+- Core (token service + UI)
+- Engine (voice AI)
+- Echoline (local STT with faster-whisper, local TTS with Kokoro)
+
+**Setup:**
+```bash
+# 1. Initialize Echoline submodule
+git submodule add https://github.com/usevowel/echoline.git echoline
+git submodule update --init --recursive
+
+# 2. Configure environment
+cp stack.env.example .env
+# Edit .env:
+#   STT_PROVIDER=openai-compatible
+#   TTS_PROVIDER=openai-compatible
+#   OPENAI_COMPATIBLE_BASE_URL=http://echoline:8000/v1
+#   DEEPGRAM_API_KEY= (clear this)
+#   VAD_PROVIDER=silero
+#   VAD_ENABLED=true
+
+# 3. Start with Echoline profile
+docker compose --profile echoline up -d
+```
+
+**Pros:**
+- No external API dependencies
+- Data stays on your infrastructure
+- No ongoing API costs
+- Works offline after initial model download
+
+**Cons:**
+- Requires NVIDIA GPU for real-time performance
+- ~5GB disk space for models
+- Slower initial startup (model download)
+- Different quality characteristics than hosted providers
+
+**Requirements:**
+- NVIDIA GPU (8GB+ VRAM recommended)
+- NVIDIA Container Toolkit
+- ~5GB free disk space
+
+---
+
+### Path C: GPU-Accelerated Deepgram
+
+**Best for:** Maximum performance with Deepgram quality
+
+**Components:**
+- Core, Engine, Deepgram
+- GPU-accelerated Silero VAD (optional)
+
+**Setup:**
+```bash
+# 1. Install NVIDIA Container Toolkit
+sudo apt-get install nvidia-container-toolkit
+sudo systemctl restart docker
+
+# 2. Configure environment
+# Same as Path A, but can set VAD_PROVIDER=silero if desired
+
+# 3. Start with GPU compose file
+bun run stack:up:gpu
+# Or: docker compose -f docker-compose.gpu.yml up -d
+```
+
+**Pros:**
+- Best of both worlds (Deepgram quality + local processing)
+- Lower VAD latency with GPU (if using Silero)
+- Reduced CPU load
+
+**Cons:**
+- Requires NVIDIA GPU
+- Requires NVIDIA Container Toolkit
+- GPU VAD requires custom onnxruntime build (standard npm package = CPU only)
+
+**GPU Performance Notes:**
+- Standard onnxruntime-node package: CPU only (~50-100ms inference)
+- Custom CUDA build: GPU support (~5-10ms inference)
+- For GPU VAD, you must build onnxruntime-node from source with CUDA
+
+---
+
+## Echoline (Self-Hosted STT/TTS)
 
 For deployments that need to avoid external speech APIs, you can run Echoline as a local STT/TTS provider.
 
@@ -379,8 +577,16 @@ ECHOLINE_STT_MODEL=Systran/faster-whisper-small
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `VAD_PROVIDER` | `silero` | Voice activity detection provider |
-| `VAD_ENABLED` | `true` | Enable server-side VAD |
+| `VAD_PROVIDER` | `silero` | Voice activity detection provider (use `none` with Deepgram) |
+| `VAD_ENABLED` | `true` | Enable server-side VAD (set `false` with Deepgram) |
+
+**Note on VAD with Deepgram:**
+Deepgram's Nova-3 model includes built-in VAD/endpointing. When using Deepgram STT, set:
+```bash
+VAD_PROVIDER=none
+VAD_ENABLED=false
+```
+This avoids redundant VAD processing and is the recommended configuration for Deepgram deployments.
 
 ### Core Bootstrap
 
