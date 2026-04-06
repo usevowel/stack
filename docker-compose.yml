@@ -72,8 +72,8 @@ services:
 
   core:
     build:
-      context: ./core
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: core/Dockerfile
     container_name: vowel-core
     depends_on:
       engine:
