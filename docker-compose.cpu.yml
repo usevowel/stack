@@ -1,14 +1,8 @@
-name: vowel-self-hosted
+name: vowel-self-hosted-cpu
 
-# CPU-only version of the vowel stack (default - no GPU required)
-# This is the default Docker Compose configuration.
-# For NVIDIA GPU support, use docker-compose.gpu.yml instead.
-#
+# CPU-only version of the vowel stack (no GPU required)
 # Usage:
-#   docker compose up -d
-#
-# For GPU-accelerated setup (requires NVIDIA GPU):
-#   docker compose -f docker-compose.gpu.yml up -d
+#   docker compose -f docker-compose.cpu.yml up -d
 
 services:
   engine:

@@ -12,6 +12,8 @@ This document covers the complete setup process for the Vowel self-hosted stack 
 6. [GPU Support](#gpu-support)
 7. [Troubleshooting](#troubleshooting)
 
+**Quick Start:** After initial setup (steps 1-2), start the stack and [create an app + API key in Core UI](#3-create-an-app-and-api-key-in-core-ui) (step 3), then configure the demo (step 4).
+
 ## Initial Setup
 
 ### 1. Clone and Initialize Submodules
@@ -40,6 +42,23 @@ cd core && bun install --no-cache && cd ..
 # Install demo dependencies
 cd demos/demo && bun install --no-cache && cd ../..
 ```
+
+### 3. Build Client and UI Assets
+
+Before starting the stack, you must build the client library and Core UI assets:
+
+```bash
+# Build client and UI (required before Docker build)
+bun run build
+
+# Or skip client build if already built
+bun run build:skip-client
+
+# Or skip UI build if already built
+bun run build:skip-ui
+```
+
+**Note:** The build copies assets to `dist/` which are included in the Docker context. See `scripts/build.sh` for details.
 
 ## Repository Structure
 
@@ -95,6 +114,11 @@ DEEPGRAM_STT_MODEL=nova-3
 DEEPGRAM_STT_LANGUAGE=en-US
 DEEPGRAM_TTS_MODEL=aura-2-thalia-en
 
+# IMPORTANT: Deepgram Nova-3 has built-in VAD. Disable Silero VAD to avoid conflicts:
+# VAD_PROVIDER=none
+# VAD_ENABLED=false
+# See "VAD Configuration" section below for details.
+
 # ============================================================================
 # Required: LLM Provider (pick one)
 # ============================================================================
@@ -107,7 +131,37 @@ OPENROUTER_MODEL=qwen/qwen3.6-plus-preview:free
 # GROQ_API_KEY=your_groq_key
 ```
 
-### 3. Configure Demo Environment
+### 3. Create an App and API Key in Core UI
+
+After starting the stack, you must create an app and generate a publishable API key through the Core UI:
+
+1. **Start the stack:**
+   ```bash
+   bun run stack:up
+   ```
+
+2. **Open the Core UI:** http://localhost:3000
+
+3. **Navigate to Apps** and click **"Create app"**
+   - Give your app a name (e.g., "Demo App")
+   - Optional: add a description
+   - Save to create the app
+
+4. **Create a publishable key:**
+   - Click **"Manage keys"** on your new app
+   - Click **"Create key"**
+   - Add a label (e.g., "Demo key")
+   - Select **"Generate session tokens"** scope (required for demos)
+   - Select **"Vowel Engine"** as an allowed provider
+   - Click **Create**
+
+5. **Copy the key** - The key starts with `vkey_` and is shown once after creation. Save this for the next step.
+
+6. **Note the App ID** - This is shown in the app details page (a UUID like `abc123...`).
+
+### 4. Configure Demo Environment
+
+The demo needs the Core API key and App ID to authenticate token requests:
 
 ```bash
 # Create demo environment file
@@ -116,53 +170,77 @@ VITE_USE_CORE_COMPOSE=1
 VITE_CORE_BASE_URL=http://localhost:3000
 VITE_CORE_TOKEN_ENDPOINT=http://localhost:3000/vowel/api/generateToken
 VITE_CORE_API_KEY=vkey_your-64-char-hex-key
-VITE_CORE_APP_ID=default
+VITE_CORE_APP_ID=your-app-id-from-core-ui
 EOF
 ```
 
+**Note:** 
+- `VITE_CORE_API_KEY` must be the publishable key you created in the Core UI (starts with `vkey_`)
+- `VITE_CORE_APP_ID` must match the app ID from the Core UI where you created the key
+
 ## Docker Configuration
 
-### 1. Standard Setup (CPU Only)
+### 1. Standard Setup (CPU - Default)
 
-The standard setup uses Deepgram for STT/TTS and CPU-based processing.
+The default setup uses Deepgram for STT/TTS and CPU-based processing. **This works on all machines and does not require a GPU.**
 
 ```bash
-# Start the stack
-docker compose up -d --build
+# Build first (required)
+bun run build
+
+# Start the stack (CPU version - default)
+bun run stack:up
+
+# Or manually:
+docker compose -f docker-compose.cpu.yml up -d
 
 # View logs
-docker compose logs -f
+bun run stack:logs
 
 # Check status
 docker compose ps
 ```
 
-### 2. GPU-Enabled Setup
+**Note:** This is the default configuration and works on all machines regardless of GPU availability. Uses `docker-compose.cpu.yml`.
 
-For NVIDIA GPU acceleration (recommended for lower VAD latency):
+### 2. GPU-Enabled Setup (NVIDIA GPU Only)
+
+If your machine has an **NVIDIA GPU**, you can use GPU acceleration for lower VAD latency:
 
 ```bash
 # Install NVIDIA Container Toolkit (prerequisite)
 sudo apt-get install nvidia-container-toolkit
 sudo systemctl restart docker
 
-# Start with GPU support
-docker compose -f docker-compose.gpu.yml up -d --build
+# Build first (required)
+bun run build
 
-# Or use the helper script
+# Start with GPU support
 bun run stack:up:gpu
+
+# Or manually:
+docker compose -f docker-compose.gpu.yml up -d
 ```
+
+**Requirements:**
+- NVIDIA GPU with CUDA support
+- NVIDIA Container Toolkit installed
+- NVIDIA drivers installed (`nvidia-smi` should work on host)
 
 **Note:** GPU support for Silero VAD requires custom onnxruntime-node build. The standard npm package only supports CPU.
 
-### 3. Self-Hosted STT/TTS with Echoline
+### 3. Self-Hosted STT/TTS with Echoline (NVIDIA GPU Required)
 
-For fully self-hosted speech processing without external API dependencies:
+For fully self-hosted speech processing without external API dependencies. **Requires NVIDIA GPU.**
 
 ```bash
-# Configure for Echoline (edit .env first - see below)
+# Build first (required)
+bun run build
 
-# Start with Echoline profile
+# Start the full stack with Echoline
+bun run stack:up:full
+
+# Or manually with Echoline profile:
 docker compose --profile echoline up -d
 ```
 
@@ -238,7 +316,16 @@ npm install onnxruntime-node --build-from-source --onnxruntime_cuda_version=11.8
 
 ## Troubleshooting
 
-### Container Build Issues
+### Build Issues
+
+**Issue: `dist/` folder not found during Docker build**
+```bash
+# You must run the build script before docker compose
+bun run build
+
+# The build copies client/dist and core/ui/dist to the top-level dist/ folder
+# which is included in the Docker build context (see .dockerignore)
+```
 
 **Issue: Docker build cache problems**
 ```bash
@@ -308,31 +395,54 @@ After successful startup:
 | Core API | http://localhost:3000/vowel/api/generateToken | Token generation |
 | Engine WebSocket | ws://localhost:8787/v1/realtime | Real-time voice |
 | Demo | http://localhost:3900 | Demo application |
-| Echoline (if enabled) | http://localhost:8000 | Self-hosted STT/TTS |
+| Echoline (full stack only) | http://localhost:8000 | Self-hosted STT/TTS (requires `stack:up:full`) |
 
 ## Scripts Reference
 
 Available bun scripts in `package.json`:
 
 ```bash
+# Build (required before starting stack)
+bun run build                   # Build client and UI assets
+bun run build:skip-client       # Skip client build (use existing)
+bun run build:skip-ui           # Skip UI build (use existing)
+
 # Stack management
-bun run stack:up          # Start standard stack
-bun run stack:up:gpu       # Start GPU-enabled stack
-bun run stack:down         # Stop and remove volumes
-bun run stack:logs         # View logs
-bun run stack:build        # Build images
-bun run stack:build:gpu    # Build GPU images
+bun run stack:up                # Start CPU stack (default, works on all machines)
+bun run stack:up:gpu            # Start GPU-enabled stack (requires NVIDIA GPU)
+bun run stack:up:full         # Start full stack with Echoline (self-hosted STT/TTS)
+bun run stack:down              # Stop CPU stack
+bun run stack:down:gpu          # Stop GPU stack
+bun run stack:down:full       # Stop full stack
+bun run stack:logs              # View CPU stack logs
+bun run stack:logs:gpu          # View GPU stack logs
+bun run stack:logs:full       # View full stack logs
+bun run stack:build             # Build assets + Docker images
+bun run stack:build:gpu         # Build assets + GPU Docker images
+bun run stack:build:docker-only # Build only Docker images (skip asset build)
 
 # Development
-bun run demo:dev           # Start demo
-bun run client:dev         # Start client dev mode
-bun run core:dev           # Start core dev mode
+bun run demo:dev                # Start demo dev server
+bun run client:dev              # Start client dev mode
+bun run core:dev                # Start core dev mode
 ```
+
+### Docker Compose Files
+
+| File | Purpose |
+|------|---------|
+| `docker-compose.cpu.yml` | **Default** - CPU-only stack (works on all machines) |
+| `docker-compose.gpu.yml` | GPU-accelerated stack (requires NVIDIA GPU) |
+| `docker-compose.yml` | Full stack with Echoline profile (self-hosted STT/TTS) |
 
 ## Next Steps
 
-1. Start the stack: `docker compose up -d`
-2. Verify health: `docker compose ps`
-3. Test token generation with curl command above
-4. Open demo at http://localhost:3900
-5. Click microphone and speak to test voice interaction
+1. Build assets: `bun run build`
+2. Start the stack (CPU - default): `bun run stack:up`
+3. **Create an app and API key** in the Core UI at http://localhost:3000/apps (see [step 3 above](#3-create-an-app-and-api-key-in-core-ui))
+4. Configure the demo `.env.local` with your app ID and API key
+5. Start the demo: `bun run demo:dev`
+6. Open demo at http://localhost:3900
+7. Click microphone and speak to test voice interaction
+
+**For NVIDIA GPU users:** If you have an NVIDIA GPU and want GPU acceleration, use `bun run stack:up:gpu` instead of the default command in step 2.

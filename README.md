@@ -31,7 +31,7 @@ bun install --no-cache
 cp stack.env.example .env
 # Edit .env with your API keys
 
-# 4. Start the stack
+# 4. Start the stack (CPU - works on all machines)
 docker compose up -d
 
 # 5. Run the demo
@@ -49,21 +49,21 @@ cd demos/demo && bun run dev
 
 ### Deployment Modes
 
-**Default (Hosted STT/TTS):**
+**Default (Hosted STT/TTS) - CPU-only:**
 - Core + Engine only
 - Requires Deepgram API key for speech-to-text and text-to-speech
-- Quick setup, no GPU required
+- **Quick setup, works on all machines (no GPU required)**
 
 **Fully Self-Hosted (No External Speech Dependencies):**
 - Core + Engine + Echoline
 - Uses local faster-whisper for STT and Kokoro for TTS
-- Requires NVIDIA GPU (or CPU-only mode with slower performance)
+- **Requires NVIDIA GPU** (or CPU-only mode with slower performance)
 - No external API keys needed for speech processing
 
 ## Files
 
-- `docker-compose.yml` - Standard stack definition (CPU-only)
-- `docker-compose.gpu.yml` - GPU-enabled stack with NVIDIA support
+- `docker-compose.yml` - **Default** CPU-only stack (works on all machines)
+- `docker-compose.gpu.yml` - GPU-enabled stack for NVIDIA GPUs (optional)
 - `stack.env.example` - Template environment file
 - `SETUP.md` - Detailed setup guide
 - `.gitmodules` - Submodules for `core`, `engine`, `client`, `demos`, and `echoline`
@@ -127,7 +127,7 @@ Get a key at [deepgram.com](https://deepgram.com). The docker-compose defaults u
 If you prefer to keep all speech processing local without external dependencies, you can run Echoline as a self-hosted STT/TTS provider:
 
 **Requirements:**
-- NVIDIA GPU with CUDA support (optional but recommended)
+- **NVIDIA GPU with CUDA support (required for real-time performance)**
 - 8GB+ GPU memory for real-time performance
 - Docker with NVIDIA Container Toolkit (for GPU support)
 
@@ -194,14 +194,19 @@ See [Deployment Paths](#deployment-paths) below for full details on:
 
 ### 5. Start the Stack
 
+**Default (CPU - works on all machines):**
 ```bash
-# Standard (CPU)
 bun run stack:up
+```
 
-# Or with GPU support
+**With NVIDIA GPU support (optional - requires NVIDIA GPU):**
+```bash
 bun run stack:up:gpu
+# Or: docker compose -f docker-compose.gpu.yml up -d
+```
 
-# Or with Echoline (self-hosted STT/TTS)
+**With Echoline (self-hosted STT/TTS - requires NVIDIA GPU):**
+```bash
 docker compose --profile echoline up -d
 ```
 
@@ -274,9 +279,9 @@ Open the demo URL, click the microphone, and speak. The demo fetches ephemeral t
 
 The Vowel stack supports three deployment configurations:
 
-### Path A: Deepgram-Powered (Quick Start)
+### Path A: Deepgram-Powered (Quick Start - Default)
 
-**Best for:** Getting started quickly, production deployments
+**Best for:** Getting started quickly, production deployments. **Works on all machines (CPU-only).**
 
 **Components:**
 - Core (token service + UI)
@@ -290,13 +295,14 @@ cp stack.env.example .env
 # Edit .env - set DEEPGRAM_API_KEY, OPENROUTER_API_KEY
 # VAD_PROVIDER=none (Deepgram has built-in VAD)
 
-# 2. Start
+# 2. Start (CPU - default, works on all machines)
 bun run stack:up
+# Or: docker compose up -d
 ```
 
 **Pros:**
 - Fast setup
-- No GPU required
+- No GPU required (works on any machine)
 - Professional-grade STT/TTS quality
 - No model download time
 
@@ -306,14 +312,19 @@ bun run stack:up
 
 ---
 
-### Path B: Fully Self-Hosted with Echoline
+### Path B: Fully Self-Hosted with Echoline (NVIDIA GPU Required)
 
-**Best for:** Privacy, offline operation, no API costs
+**Best for:** Privacy, offline operation, no API costs (**requires NVIDIA GPU**)
 
 **Components:**
 - Core (token service + UI)
 - Engine (voice AI)
 - Echoline (local STT with faster-whisper, local TTS with Kokoro)
+
+**Requirements:**
+- **NVIDIA GPU (8GB+ VRAM recommended)**
+- NVIDIA Container Toolkit
+- ~5GB free disk space
 
 **Setup:**
 ```bash
@@ -342,25 +353,25 @@ docker compose --profile echoline up -d
 - Works offline after initial model download
 
 **Cons:**
-- Requires NVIDIA GPU for real-time performance
+- **Requires NVIDIA GPU for real-time performance**
 - ~5GB disk space for models
 - Slower initial startup (model download)
 - Different quality characteristics than hosted providers
 
-**Requirements:**
-- NVIDIA GPU (8GB+ VRAM recommended)
-- NVIDIA Container Toolkit
-- ~5GB free disk space
-
 ---
 
-### Path C: GPU-Accelerated Deepgram
+### Path C: GPU-Accelerated Deepgram (NVIDIA GPU Only)
 
-**Best for:** Maximum performance with Deepgram quality
+**Best for:** Maximum performance with Deepgram quality (requires **NVIDIA GPU**)
 
 **Components:**
 - Core, Engine, Deepgram
 - GPU-accelerated Silero VAD (optional)
+
+**Requirements:**
+- NVIDIA GPU with CUDA support
+- NVIDIA Container Toolkit installed
+- NVIDIA drivers installed
 
 **Setup:**
 ```bash
@@ -382,7 +393,7 @@ bun run stack:up:gpu
 - Reduced CPU load
 
 **Cons:**
-- Requires NVIDIA GPU
+- **Requires NVIDIA GPU**
 - Requires NVIDIA Container Toolkit
 - GPU VAD requires custom onnxruntime build (standard npm package = CPU only)
 

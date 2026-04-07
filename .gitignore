@@ -15,3 +15,11 @@ stack.env
 .wrangler/
 *.log
 .DS_Store
+
+node_modules
+
+# Build artifacts
+dist/
+core/dist/
+core/ui/dist/
+client/dist/
