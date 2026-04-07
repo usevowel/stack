@@ -1,6 +1,6 @@
 [submodule "core"]
 	path = core
-	url = git@github.com:usevowel/core.git
+	url = https://github.com/usevowel/core.git
 [submodule "engine"]
 	path = engine
 	url = https://github.com/usevowel/engine.git

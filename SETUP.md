@@ -2,17 +2,39 @@
 
 This document covers the complete setup process for the Vowel self-hosted stack with Deepgram integration.
 
+## Recommended: Use an AI Agent
+
+The easiest way to execute this setup is to use an AI coding agent. Simply copy and paste this entire document into your preferred agent and let it handle the setup for you.
+
+**Supported agents:**
+- [OpenCode](https://github.com/opencode-ai/opencode)
+- [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview)
+- [OpenAI Codex](https://github.com/openai/codex)
+- [Cursor Agent](https://docs.cursor.com/agent)
+
+The agent will automatically execute all necessary commands, configure environment files, and validate the setup. This is the recommended approach for most users.
+
+---
+
 ## Table of Contents
 
-1. [Initial Setup](#initial-setup)
-2. [Repository Structure](#repository-structure)
-3. [Environment Configuration](#environment-configuration)
-4. [Docker Configuration](#docker-configuration)
-5. [VAD Configuration](#vad-configuration)
-6. [GPU Support](#gpu-support)
-7. [Troubleshooting](#troubleshooting)
+1. [Quick Start (AI Agent Recommended)](#recommended-use-an-ai-agent)
+2. [Manual Setup](#manual-setup)
+   - [Initial Setup](#initial-setup)
+   - [Repository Structure](#repository-structure)
+   - [Environment Configuration](#environment-configuration)
+   - [Docker Configuration](#docker-configuration)
+3. [VAD Configuration](#vad-configuration)
+4. [GPU Support](#gpu-support)
+5. [Troubleshooting](#troubleshooting)
 
-**Quick Start:** After initial setup (steps 1-2), start the stack and [create an app + API key in Core UI](#3-create-an-app-and-api-key-in-core-ui) (step 3), then configure the demo (step 4).
+**Quick Start (Manual):** If doing setup manually, complete steps 1-2 in [Initial Setup](#initial-setup), then [create an app + API key in Core UI](#3-create-an-app-and-api-key-in-core-ui) (step 3), and finally configure the demo (step 4).
+
+---
+
+## Manual Setup
+
+The following sections detail the complete manual setup process. Alternatively, use an [AI agent](#recommended-use-an-ai-agent) to automate these steps.
 
 ## Initial Setup
 
