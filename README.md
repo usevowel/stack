@@ -1,4 +1,4 @@
-# vowel Self-Hosted Stack
+# vowel Self-Hosted Stack [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/usevowel/stack)
 
 > **⚠️ Beta Release** — This open-source release is in beta. You may encounter rough edges, incomplete features, or breaking changes. We are actively reviewing and merging community PRs, but please expect some instability as we iterate toward a stable release. Your feedback and contributions are welcome.
 
